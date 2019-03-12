@@ -9,8 +9,13 @@ sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
+    maven {
+        url "https://raw.github.com/amidst/toolbox/mvn-repo/"
+    }
 }
 
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
+    compile 'eu.amidst:module-all:0.6.0'
 }
+
