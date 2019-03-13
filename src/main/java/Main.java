@@ -21,7 +21,7 @@ public class Main {
         }
     }
 
-    static double calculateProbability(BayesianNetwork bn, String request) {
+    public static double calculateProbability(BayesianNetwork bn, String request) {
         String[] variablesDefinitions = request.split(",");
         HashMap<String, Double> varName2Value = new HashMap<>();
         HashMap<String, Boolean> varsNeededForResult = new HashMap<>();
