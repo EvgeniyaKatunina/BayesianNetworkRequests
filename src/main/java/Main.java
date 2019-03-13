@@ -1,5 +1,5 @@
+import COM.hugin.HAPI.ExceptionHugin;
 import eu.amidst.core.distribution.ConditionalDistribution;
-import eu.amidst.core.io.BayesianNetworkLoader;
 import eu.amidst.core.models.BayesianNetwork;
 import eu.amidst.core.variables.HashMapAssignment;
 import eu.amidst.core.variables.Variable;
@@ -14,13 +14,12 @@ import java.util.Map;
 
 public class Main {
 
-    public static void main(String[] args) throws IOException, ClassNotFoundException {
-        BayesianNetwork bn = BNConverterToAMIDST.convertToAmidst(BNLoaderFromHugin.loadFromFile("alarm.net"));
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(System.in)); PrintWriter pw =
-                new PrintWriter(new OutputStreamWriter(System.out))) {
+    public static void main(String[] args) throws IOException, ExceptionHugin {
+        BayesianNetwork bn = BNConverterToAMIDST.convertToAmidst(BNLoaderFromHugin.loadFromFile("asia.net"));
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(System.in))) {
             for (; ; ) {
                 String request = br.readLine();
-                pw.println(calculateProbability(bn, request));
+                System.out.println(calculateProbability(bn, request));
             }
         }
     }
@@ -123,7 +122,7 @@ public class Main {
             double currentVarProb = distribution.getConditionalProbability(assignment);
             double parentsFactor = 1;
             for (int t = 0; t < parentsSize; t++) {
-                parentsFactor *= var2Value2Probability.get(parents.get(t).getName()).get(parentsValues[t]);
+                parentsFactor *= var2Value2Probability.get(parents.get(t).getName()).get((double) parentsValues[t]);
             }
             currentVarProb = currentVarProb * parentsFactor * requestProbabilities;
             result += currentVarProb;
