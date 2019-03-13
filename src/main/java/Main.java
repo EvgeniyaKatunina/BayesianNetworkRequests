@@ -7,7 +7,6 @@ import eu.amidst.huginlink.converters.BNConverterToAMIDST;
 import eu.amidst.huginlink.io.BNLoaderFromHugin;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,69 +63,52 @@ public class Main {
         HashMapAssignment assignment = new HashMapAssignment();
         assignment.setValue(bn.getVariables().getVariableByName(varName), varValue);
         List<Variable> parents = distribution.getConditioningVariables();
-        ArrayList<Integer> indexesToRemove = new ArrayList<>();
+        double requestProbabilities = 1;
         for (int i = 0; i < parents.size(); i++) {
             String currentVarName = parents.get(i).getName();
             if (varName2Value.containsKey(currentVarName)) {
-                indexesToRemove.add(i);
                 assignment.setValue(bn.getVariables().getVariableByName(currentVarName),
                         varName2Value.get(currentVarName));
+                calculateProbability(bn, currentVarName, varName2Value.get(currentVarName), varName2Value,
+                        varsNeededForResult, var2Value2Probability);
+                requestProbabilities *= var2Value2Probability.get(currentVarName).get(varName2Value.get(currentVarName));
             }
         }
-        double requestProbabilities = 1;
-        for (int index : indexesToRemove) {
-            String currentVarName = parents.get(index).getName();
-            calculateProbability(bn, currentVarName, varName2Value.get(currentVarName), varName2Value,
-                    varsNeededForResult, var2Value2Probability);
-            requestProbabilities *= var2Value2Probability.get(currentVarName).get(varName2Value.get(currentVarName));
-        }
-        ArrayList<Variable> parentsTemp = new ArrayList<>();
-        for (int i = 0; i < parents.size(); i++) {
-            if (!indexesToRemove.contains(i)) {
-                parentsTemp.add(parents.get(i));
-            }
-        }
-        parents = parentsTemp;
-        int counter = 1;
+        parents.removeIf(x -> varName2Value.containsKey(x.getName()));
         for (Variable var : parents) {
             int numberOfStates = var.getNumberOfStates();
-            counter *= numberOfStates;
             for (int i = 0; i < numberOfStates; i++) {
                 calculateProbability(bn, var.getName(), i, varName2Value, varsNeededForResult, var2Value2Probability);
             }
         }
-        int parentsSize = parents.size();
+        double[] result = new double[1];
+        calculateCrossProductProbability(parents, bn, requestProbabilities, result, 0, assignment, 1,
+                var2Value2Probability, distribution);
         var2Value2Probability.computeIfAbsent(varName, k -> new HashMap<>());
-        double result = 0;
-        for (int i = 0; i < counter; i++) {
-            int[] parentsValues = new int[parentsSize];
-            int temp = i;
-            int states = 1;
-            int currentParent = 0;
-            while (temp != 0) {
-                int currentStates = parents.get(currentParent).getNumberOfStates();
-                int prevState = states;
-                states *= currentStates;
-                if (temp < states) {
-                    parentsValues[currentParent] = temp / prevState;
-                    states = prevState;
-                    currentParent--;
-                    temp -= parentsValues[currentParent] * prevState;
-                } else {
-                    currentParent++;
-                }
-            }
-            for (int k = 0; k < parentsSize; k++) {
-                assignment.setValue(bn.getVariables().getVariableByName(parents.get(k).getName()), parentsValues[k]);
-            }
-            double currentVarProb = distribution.getConditionalProbability(assignment);
-            double parentsFactor = 1;
-            for (int t = 0; t < parentsSize; t++) {
-                parentsFactor *= var2Value2Probability.get(parents.get(t).getName()).get((double) parentsValues[t]);
-            }
-            currentVarProb = currentVarProb * parentsFactor * requestProbabilities;
-            result += currentVarProb;
+        var2Value2Probability.get(varName).put(varValue, result[0]);
+    }
+
+    private static void calculateCrossProductProbability(List<Variable> parents, BayesianNetwork bn,
+                                                         double requestProbabilities, double[] result, int depth,
+                                                         HashMapAssignment assignment, double parentsFactor,
+                                                         HashMap<String, HashMap<Double, Double>> var2Value2Probability,
+                                                         ConditionalDistribution distribution) {
+        if (parents.size() == 0) {
+            result[0] = distribution.getConditionalProbability(assignment) * requestProbabilities;
+            return;
         }
-        var2Value2Probability.get(varName).put(varValue, result);
+        Variable currentParent = parents.get(depth);
+        for (int i = 0; i < currentParent.getNumberOfStates(); i++) {
+            assignment.setValue(bn.getVariables().getVariableByName(currentParent.getName()), i);
+            double nextFactor = parentsFactor * var2Value2Probability.get(currentParent.getName()).get((double) i);
+            if (depth == parents.size() - 1) {
+                double currentVarProb = distribution.getConditionalProbability(assignment);
+                currentVarProb = currentVarProb * nextFactor * requestProbabilities;
+                result[0] += currentVarProb;
+            } else {
+                calculateCrossProductProbability(parents, bn, requestProbabilities, result, depth + 1, assignment,
+                        nextFactor, var2Value2Probability, distribution);
+            }
+        }
     }
 }
