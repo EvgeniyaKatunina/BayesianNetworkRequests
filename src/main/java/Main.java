@@ -7,14 +7,12 @@ import eu.amidst.huginlink.converters.BNConverterToAMIDST;
 import eu.amidst.huginlink.io.BNLoaderFromHugin;
 
 import java.io.*;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Main {
 
     public static void main(String[] args) throws IOException, ExceptionHugin {
-        BayesianNetwork bn = BNConverterToAMIDST.convertToAmidst(BNLoaderFromHugin.loadFromFile("asia.net"));
+        BayesianNetwork bn = BNConverterToAMIDST.convertToAmidst(BNLoaderFromHugin.loadFromFile("student.net"));
         try (BufferedReader br = new BufferedReader(new InputStreamReader(System.in))) {
             for (; ; ) {
                 String request = br.readLine();
@@ -23,7 +21,7 @@ public class Main {
         }
     }
 
-    public static double calculateProbability(BayesianNetwork bn, String request) {
+    static double calculateProbability(BayesianNetwork bn, String request) {
         String[] variablesDefinitions = request.split(",");
         HashMap<String, Double> varName2Value = new HashMap<>();
         HashMap<String, Boolean> varsNeededForResult = new HashMap<>();
@@ -74,7 +72,9 @@ public class Main {
                 requestProbabilities *= var2Value2Probability.get(currentVarName).get(varName2Value.get(currentVarName));
             }
         }
-        parents.removeIf(x -> varName2Value.containsKey(x.getName()));
+        ArrayList<Variable> tempParents = new ArrayList<>(parents);
+        tempParents.removeIf(x -> varName2Value.containsKey(x.getName()));
+        parents = tempParents;
         for (Variable var : parents) {
             int numberOfStates = var.getNumberOfStates();
             for (int i = 0; i < numberOfStates; i++) {
