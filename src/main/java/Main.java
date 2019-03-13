@@ -53,8 +53,11 @@ public class Main {
     private static void calculateProbability(BayesianNetwork bn, String varName, double varValue, HashMap<String,
             Double> varName2Value, HashMap<String, Boolean> varsNeededForResult, HashMap<String, HashMap<Double,
             Double>> var2Value2Probability) {
-        if (varsNeededForResult.containsKey(varName)) {
-            varsNeededForResult.put(varName, false);
+        varsNeededForResult.put(varName, false);
+        if (var2Value2Probability.get(varName) != null &&
+                (varName2Value.containsKey(varName) || var2Value2Probability.get(varName).size()
+                        == bn.getVariables().getVariableByName(varName).getNumberOfStates())) {
+            return;
         }
         ConditionalDistribution distribution =
                 bn.getConditionalDistribution(bn.getVariables().getVariableByName(varName));
@@ -62,8 +65,16 @@ public class Main {
         assignment.setValue(bn.getVariables().getVariableByName(varName), varValue);
         List<Variable> parents = distribution.getConditioningVariables();
         double requestProbabilities = 1;
+        ArrayList<Variable> unNeeededVariables = new ArrayList<>();
         for (int i = 0; i < parents.size(); i++) {
             String currentVarName = parents.get(i).getName();
+            if (varsNeededForResult.get(currentVarName) != null && !varsNeededForResult.get(currentVarName)) {
+                unNeeededVariables.add(parents.get(i));
+                if (varName2Value.get(currentVarName) != null) {
+                    assignment.setValue(bn.getVariables().getVariableByName(currentVarName), varName2Value.get(currentVarName));
+                }
+                continue;
+            }
             if (varName2Value.containsKey(currentVarName)) {
                 assignment.setValue(bn.getVariables().getVariableByName(currentVarName),
                         varName2Value.get(currentVarName));
@@ -73,7 +84,7 @@ public class Main {
             }
         }
         ArrayList<Variable> tempParents = new ArrayList<>(parents);
-        tempParents.removeIf(x -> varName2Value.containsKey(x.getName()));
+        tempParents.removeIf(x -> varName2Value.containsKey(x.getName()) || unNeeededVariables.contains(x));
         parents = tempParents;
         for (Variable var : parents) {
             int numberOfStates = var.getNumberOfStates();
@@ -91,8 +102,7 @@ public class Main {
     private static void calculateCrossProductProbability(List<Variable> parents, BayesianNetwork bn,
                                                          double requestProbabilities, double[] result, int depth,
                                                          HashMapAssignment assignment, double parentsFactor,
-                                                         HashMap<String, HashMap<Double, Double>> var2Value2Probability,
-                                                         ConditionalDistribution distribution) {
+                                                         HashMap<String, HashMap<Double, Double>> var2Value2Probability, ConditionalDistribution distribution) {
         if (parents.size() == 0) {
             result[0] = distribution.getConditionalProbability(assignment) * requestProbabilities;
             return;
